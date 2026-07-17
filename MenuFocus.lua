@@ -174,6 +174,37 @@ menu_focus.set_items(current_menu)
 -- Initialize display
 update_hud()
 
+-- Set up console alias for inter-addon communication to prevent "Command not found" errors
+windower.send_command('alias menu_focus_event menufocus dummy')
+
+-- Global command listener in the manager to track focusable addons
+windower.register_event('command', function(cmd)
+    local cmd_str = cmd:lower()
+    if cmd_str:sub(1, 17) == "menu_focus_event " then
+        local parts = {}
+        for word in cmd:gmatch("%S+") do
+            table.insert(parts, word)
+        end
+        
+        local event_type = parts[2]
+        local sender = parts[3]
+        
+        if event_type == 'mf_register' then
+            if sender then
+                active_addons[sender:lower()] = sender
+            end
+        elseif event_type == 'mf_unregister' then
+            if sender then
+                active_addons[sender:lower()] = nil
+            end
+        elseif event_type == 'mf_ping' then
+            if sender ~= _addon.name then
+                windower.send_command('menu_focus_event mf_register MenuFocus')
+            end
+        end
+    end
+end)
+
 -- Addon commands
 windower.register_event('addon command', function(cmd, ...)
     local args = {...}
@@ -247,21 +278,6 @@ windower.register_event('addon command', function(cmd, ...)
             if next_addon then
                 windower.send_command('menu_focus_event mf_force_focus ' .. next_addon)
             end
-        end
-    elseif cmd_lower == 'mf_register' then
-        local sender = args[1]
-        if sender then
-            active_addons[sender:lower()] = sender
-        end
-    elseif cmd_lower == 'mf_unregister' then
-        local sender = args[1]
-        if sender then
-            active_addons[sender:lower()] = nil
-        end
-    elseif cmd_lower == 'mf_ping' then
-        local sender = args[1]
-        if sender ~= _addon.name then
-            windower.send_command('menu_focus_event mf_register MenuFocus')
         end
     elseif cmd_lower == 'addon_message' then
         local sender = args[1]
