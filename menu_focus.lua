@@ -54,6 +54,14 @@ function menu_focus.init(config)
     on_focus_change_cb = config.on_focus_change
     menu_focus.binds = config.binds or default_binds
     
+    -- Proactively clear any stray binds from previous runs/crashes upon load
+    for key, _ in pairs(menu_focus.binds) do
+        windower.send_command('unbind ' .. key)
+    end
+    for i = 1, 9 do
+        windower.send_command('unbind %' .. tostring(i))
+    end
+    
     -- Self-healing unload hook to clean up binds immediately upon addon unload
     windower.register_event('unload', function()
         if menu_focus.is_focused then
