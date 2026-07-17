@@ -159,6 +159,17 @@ The `menu_focus` library is a drop-in Lua component designed for FFXI Windower 4
 
 ---
 
+## Guiding Principle: Preserve the Original Addon
+
+> [!IMPORTANT]
+> **Minimal Code Churn**: When integrating `menu_focus` into an existing addon, your primary goal is to **keep the original code, UI styling, and gameplay flow as close to the original as possible.**
+> 
+> * Do not force structural rewrites of the host addon's HUD drawing routines.
+> * Avoid defaulting to hidden menus if the addon originally displayed a persistent display readout on screen.
+> * Only render cursor selectors (`→`) and keybind navigation instructions when the focus state is explicitly active. When unfocused, the UI should look and function exactly as it did before integration.
+
+---
+
 ## 1. Quick Start: 3-Step Setup
 
 ### Step 1: Copy the Library
