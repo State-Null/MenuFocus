@@ -26,16 +26,18 @@ local on_focus_change_cb = nil
 local default_binds = {
     ['%tab']          = 'menu_next',
     ['%~tab']         = 'menu_prev',     -- Shift + Tab
-    ['%enter']        = 'menu_select',   -- Keyboard Enter
-    ['%numpadenter']  = 'menu_select',   -- Numpad Enter
-    ['%space']        = 'menu_select',   -- Keyboard Space (safe for Compact mode fallback)
+    ['%space']        = 'menu_select',   -- Keyboard Space (safe confirm key)
     ['%escape']       = 'menu_close',    -- Cancel/Exit
     
-    -- Keyboard Arrow keys for navigation
-    ['%up']           = 'menu_prev',
-    ['%down']         = 'menu_next',
-    ['%left']         = 'menu_prev',
-    ['%right']        = 'menu_next',
+    -- Keyboard Arrow keys for directional navigation
+    ['%up']           = 'menu_up',
+    ['%down']         = 'menu_down',
+    ['%left']         = 'menu_left',
+    ['%right']        = 'menu_right',
+    
+    -- Numpad test bindings (easy access next to arrow keys)
+    ['%numpad0']      = 'menu_next',     -- Cycles options like Tab
+    ['%numpadenter']  = 'menu_select',   -- Confirms options
 }
 
 -- =========================================================================================
@@ -154,6 +156,74 @@ function menu_focus.prev()
     if on_focus_change_cb then
         on_focus_change_cb(true, menu_focus.current_index)
     end
+end
+
+--- Navigate up directionally. Falls back to prev() if no custom path is defined.
+function menu_focus.up()
+    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local selected = menu_focus.items[menu_focus.current_index]
+    if selected and selected.up then
+        local target = tonumber(selected.up)
+        if target and target >= 1 and target <= #menu_focus.items then
+            menu_focus.current_index = target
+            if on_focus_change_cb then
+                on_focus_change_cb(true, menu_focus.current_index)
+            end
+            return
+        end
+    end
+    menu_focus.prev()
+end
+
+--- Navigate down directionally. Falls back to next() if no custom path is defined.
+function menu_focus.down()
+    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local selected = menu_focus.items[menu_focus.current_index]
+    if selected and selected.down then
+        local target = tonumber(selected.down)
+        if target and target >= 1 and target <= #menu_focus.items then
+            menu_focus.current_index = target
+            if on_focus_change_cb then
+                on_focus_change_cb(true, menu_focus.current_index)
+            end
+            return
+        end
+    end
+    menu_focus.next()
+end
+
+--- Navigate left directionally. Falls back to prev() if no custom path is defined.
+function menu_focus.left()
+    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local selected = menu_focus.items[menu_focus.current_index]
+    if selected and selected.left then
+        local target = tonumber(selected.left)
+        if target and target >= 1 and target <= #menu_focus.items then
+            menu_focus.current_index = target
+            if on_focus_change_cb then
+                on_focus_change_cb(true, menu_focus.current_index)
+            end
+            return
+        end
+    end
+    menu_focus.prev()
+end
+
+--- Navigate right directionally. Falls back to next() if no custom path is defined.
+function menu_focus.right()
+    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local selected = menu_focus.items[menu_focus.current_index]
+    if selected and selected.right then
+        local target = tonumber(selected.right)
+        if target and target >= 1 and target <= #menu_focus.items then
+            menu_focus.current_index = target
+            if on_focus_change_cb then
+                on_focus_change_cb(true, menu_focus.current_index)
+            end
+            return
+        end
+    end
+    menu_focus.next()
 end
 
 --- Confirm selection at the current highlighted index.

@@ -186,6 +186,14 @@ windower.register_event('addon command', function(cmd, ...)
         menu_focus.next()
     elseif cmd_lower == 'menu_prev' then
         menu_focus.prev()
+    elseif cmd_lower == 'menu_up' then
+        menu_focus.up()
+    elseif cmd_lower == 'menu_down' then
+        menu_focus.down()
+    elseif cmd_lower == 'menu_left' then
+        menu_focus.left()
+    elseif cmd_lower == 'menu_right' then
+        menu_focus.right()
     elseif cmd_lower == 'menu_select' then
         menu_focus.select()
     elseif cmd_lower == 'menu_num_select' then
