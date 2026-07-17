@@ -36,31 +36,29 @@ local menu_items = {
 
 -- Render HUD with highlight cursor
 local function update_hud()
-    if not menu_focus.is_focused then
-        hud:hide()
-        return
-    end
-
     local lines = {
         "=== [ AutoCOR Roll Settings ] ===",
         "Roll 1 Slot : " .. rolls.roll1,
         "Roll 2 Slot : " .. rolls.roll2,
-        "-------------------------------------",
-        "Select a roll configuration options:",
     }
 
-    local current_idx = menu_focus.current_index
-    for i, item in ipairs(menu_items) do
-        if i == current_idx then
-            table.insert(lines, "  → [ " .. item.name .. " ]")
-        else
-            table.insert(lines, "    " .. item.name)
-        end
-    end
+    if menu_focus.is_focused then
+        table.insert(lines, "-------------------------------------")
+        table.insert(lines, "Select a roll configuration options:")
 
-    table.insert(lines, "-------------------------------------")
-    table.insert(lines, "Navigate : Arrow Keys | Cycle: Numpad 0")
-    table.insert(lines, "Select   : Space/NumEnter | Exit: Escape")
+        local current_idx = menu_focus.current_index
+        for i, item in ipairs(menu_items) do
+            if i == current_idx then
+                table.insert(lines, "  → [ " .. item.name .. " ]")
+            else
+                table.insert(lines, "    " .. item.name)
+            end
+        end
+
+        table.insert(lines, "-------------------------------------")
+        table.insert(lines, "Navigate : Arrow Keys | Cycle: Numpad 0")
+        table.insert(lines, "Select   : Space/NumEnter | Exit: Escape")
+    end
 
     hud:text(table.concat(lines, "\n"))
     hud:show()
@@ -83,6 +81,7 @@ menu_focus.init({
 })
 
 menu_focus.set_items(menu_items)
+update_hud()
 
 -- Route addon commands
 windower.register_event('addon command', function(cmd, ...)

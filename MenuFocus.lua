@@ -71,13 +71,18 @@ local hud_settings = {
 }
 
 -- Create the on-screen text object
+-- Settings configuration: auto_hide defaults to false (stays visible on screen)
+local settings = {
+    auto_hide = false,
+}
+
 local menu_hud = texts.new(hud_settings)
 
 -- Function to redraw the menu HUD based on state and selected index
 local function update_hud()
     local text_lines = {}
     
-    if menu_focus.is_focused then
+    if menu_focus.is_focused or not settings.auto_hide then
         -- Indicate if we are in a submenu
         if #menu_stack > 0 then
             table.insert(text_lines, "\\cs(100, 220, 255)[ SUB MENU ] (Tab to Cycle)\\cr")
@@ -86,7 +91,7 @@ local function update_hud()
         end
         table.insert(text_lines, "\\cs(120, 120, 120)---------------------------------------------\\cr")
         for i, item in ipairs(current_menu) do
-            if i == menu_focus.current_index then
+            if menu_focus.is_focused and i == menu_focus.current_index then
                 table.insert(text_lines, " \\cs(50, 255, 100)→ " .. string.format("%2d", i) .. ". " .. item.name .. "\\cr")
             else
                 table.insert(text_lines, "   " .. string.format("%2d", i) .. ". " .. item.name)
@@ -95,10 +100,14 @@ local function update_hud()
         table.insert(text_lines, "\\cs(120, 120, 120)---------------------------------------------\\cr")
         
         -- Custom instructions depending on menu depth
-        if #menu_stack > 0 then
-            table.insert(text_lines, "\\cs(255, 255, 100)SPACE/ENTER: Select | ESC: Go Back\\cr")
+        if menu_focus.is_focused then
+            if #menu_stack > 0 then
+                table.insert(text_lines, "\\cs(255, 255, 100)SPACE/ENTER: Select | ESC: Go Back\\cr")
+            else
+                table.insert(text_lines, "\\cs(255, 255, 100)SPACE/ENTER: Select | ESC: Close\\cr")
+            end
         else
-            table.insert(text_lines, "\\cs(255, 255, 100)SPACE/ENTER: Select | ESC: Close\\cr")
+            table.insert(text_lines, "\\cs(255, 150, 100)UNFOCUSED - Type //mf focus to control\\cr")
         end
         
         menu_hud:text(table.concat(text_lines, '\n'))
@@ -182,6 +191,10 @@ windower.register_event('addon command', function(cmd, ...)
         else
             menu_focus.focus()
         end
+    elseif cmd_lower == 'autohide' then
+        settings.auto_hide = not settings.auto_hide
+        update_hud()
+        windower.add_to_chat(207, "[MenuFocus] Auto-hide set to: " .. tostring(settings.auto_hide))
     elseif cmd_lower == 'menu_next' then
         menu_focus.next()
     elseif cmd_lower == 'menu_prev' then
