@@ -100,18 +100,12 @@ local function update_hud()
         else
             table.insert(text_lines, "\\cs(255, 255, 100)SPACE/ENTER: Select | ESC: Close\\cr")
         end
+        
+        menu_hud:text(table.concat(text_lines, '\n'))
+        menu_hud:show()
     else
-        table.insert(text_lines, "\\cs(150, 150, 150)[ MENU FOCUS ] (Inactive)\\cr")
-        table.insert(text_lines, "\\cs(100, 100, 100)---------------------------------------------\\cr")
-        for i, item in ipairs(current_menu) do
-            table.insert(text_lines, "\\cs(150, 150, 150)   " .. string.format("%2d", i) .. ". " .. item.name .. "\\cr")
-        end
-        table.insert(text_lines, "\\cs(100, 100, 100)---------------------------------------------\\cr")
-        table.insert(text_lines, "\\cs(180, 180, 100)Type //mf focus to navigate\\cr")
+        menu_hud:hide()
     end
-    
-    menu_hud:text(table.concat(text_lines, '\n'))
-    menu_hud:show()
 end
 
 -- Initialize the focus helper
