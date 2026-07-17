@@ -90,8 +90,6 @@ windower.register_event('addon command', function(cmd, ...)
 
     if cmd_lower == 'focus' or cmd_lower == 'open' or cmd_lower == 'toggle' then
         menu_focus.toggle()
-    elseif cmd_lower == 'cycle' then
-        menu_focus.cycle()
     elseif cmd_lower == 'menu_next' then
         menu_focus.next()
     elseif cmd_lower == 'menu_prev' then
