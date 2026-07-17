@@ -27,25 +27,33 @@ local hud = texts.new({
 
 -- Define our menu options with callback actions
 local menu_items = {
-    { name = "AutoCOR", action = "toggle" }
+    { name = "AutoCOR", action = "toggle_autocor" },
+    { name = "<p1>",    action = "toggle_p1" },
+    { name = "<p2>",    action = "toggle_p2" },
+    { name = "<p3>",    action = "toggle_p3" },
+    { name = "<p4>",    action = "toggle_p4" },
+    { name = "<p5>",    action = "toggle_p5" }
 }
 
 -- Render HUD to look 100% identical to original layout, but with selector arrow when focused
 local function update_hud()
     local lines = {}
+    local is_f = menu_focus.is_focused
+    local cur = menu_focus.current_index
     
-    local status_str = autocor_enabled and "On" or "Off"
-    if menu_focus.is_focused and menu_focus.current_index == 1 then
-        table.insert(lines, "→ AutoCOR [" .. status_str .. "]")
-    else
-        table.insert(lines, "AutoCOR [" .. status_str .. "]")
-    end
+    local c1 = (is_f and cur == 1) and "→ " or "  "
+    table.insert(lines, c1 .. "AutoCOR [" .. (autocor_enabled and "On" or "Off") .. "]")
     
-    table.insert(lines, "Roll 1 [" .. roll1 .. "]")
-    table.insert(lines, "Roll 2 [" .. roll2 .. "]")
-    table.insert(lines, "AoE:")
+    -- Roll slots remain as static readouts (unselectable in focus navigation)
+    table.insert(lines, "  Roll 1 [" .. roll1 .. "]")
+    table.insert(lines, "  Roll 2 [" .. roll2 .. "]")
+    
+    table.insert(lines, "  AoE:")
+    
     for i = 1, 5 do
-        table.insert(lines, "<p" .. i .. "> [" .. party_status[i] .. "]")
+        -- Focus index shifts because we skipped Roll 1 and Roll 2
+        local c_p = (is_f and cur == (1 + i)) and "→ " or "  "
+        table.insert(lines, c_p .. "<p" .. i .. "> [" .. party_status[i] .. "]")
     end
 
     hud:text(table.concat(lines, "\n"))
@@ -55,11 +63,17 @@ end
 -- Initialize library
 menu_focus.init({
     on_select = function(item, index)
-        if item.action == "toggle" then
+        if item.action == "toggle_autocor" then
             autocor_enabled = not autocor_enabled
             windower.add_to_chat(207, "[AutoCORDemo] AutoCOR rolls automation is now " .. (autocor_enabled and "ON" or "OFF"))
-            update_hud()
+        elseif item.action:sub(1, 8) == "toggle_p" then
+            local slot = tonumber(item.action:sub(9))
+            if slot then
+                party_status[slot] = (party_status[slot] == "On") and "Off" or "On"
+                windower.add_to_chat(207, "[AutoCORDemo] Party slot " .. slot .. " set to " .. party_status[slot])
+            end
         end
+        update_hud()
     end,
     on_focus_change = function(focused, index)
         update_hud()
