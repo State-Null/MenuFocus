@@ -81,6 +81,9 @@ function menu_focus.focus()
         windower.send_command('bind %' .. tostring(i) .. ' ' .. _addon.name .. ' menu_num_select ' .. tostring(i))
     end
     
+    -- Local console event broadcast
+    windower.send_command('addon_message ' .. _addon.name .. ' focus')
+    
     if on_focus_change_cb then
         on_focus_change_cb(true, menu_focus.current_index)
     end
@@ -95,6 +98,9 @@ function menu_focus.unfocus()
     
     -- Delay unbind slightly to swallow the key-up event before restoring normal controls
     windower.send_command('wait 0.15; ' .. _addon.name .. ' clear_binds')
+    
+    -- Local console event broadcast
+    windower.send_command('addon_message ' .. _addon.name .. ' unfocus')
     
     if on_focus_change_cb then
         on_focus_change_cb(false, nil)

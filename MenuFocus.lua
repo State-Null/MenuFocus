@@ -1,11 +1,14 @@
 -- MenuFocus.lua
 _addon.name = 'MenuFocus'
 _addon.author = 'Antigravity'
-_addon.commands = {'menufocus', 'mf'}
+_addon.commands = {'menufocus', 'mf', 'addon_message'}
 _addon.version = '1.1.0'
 
 local texts = require('texts')
 local menu_focus = require('menu_focus')
+
+-- Tracks which addon holds the active focus locally
+local active_focus_holder = nil
 
 -- =========================================================================================
 -- CONFIGURATION BLOCK: ADD OR MODIFY YOUR SUBMENUS HERE
@@ -196,6 +199,20 @@ windower.register_event('addon command', function(cmd, ...)
         menu_focus.num_select(num)
     elseif cmd_lower == 'clear_binds' then
         menu_focus.clear_binds()
+    elseif cmd_lower == 'addon_message' then
+        local sender = args[1]
+        local event_type = args[2]
+        if event_type == 'focus' then
+            -- Force unfocus on any other active addon holding focus
+            if active_focus_holder and active_focus_holder ~= sender then
+                windower.send_command('lua c ' .. active_focus_holder .. ' unfocus')
+            end
+            active_focus_holder = sender
+        elseif event_type == 'unfocus' then
+            if active_focus_holder == sender then
+                active_focus_holder = nil
+            end
+        end
     elseif cmd_lower == 'dummy' then
         -- Do nothing
     else
