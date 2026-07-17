@@ -7,6 +7,9 @@ _addon.version = '1.1.0'
 local texts = require('texts')
 local menu_focus = require('menu_focus')
 
+-- Tracks which addon holds the active focus globally
+local active_focus_holder = nil
+
 -- =========================================================================================
 -- CONFIGURATION BLOCK: ADD OR MODIFY YOUR SUBMENUS HERE
 -- =========================================================================================
@@ -71,6 +74,7 @@ local hud_settings = {
 -- Settings configuration: auto_hide defaults to false (stays visible on screen)
 local settings = {
     auto_hide = false,
+    cycle_order = { 'MenuFocus', 'AutoCORDemo' }, -- Customizable cycle order
 }
 
 local menu_hud = texts.new(hud_settings)
@@ -187,6 +191,58 @@ windower.register_event('addon command', function(cmd, ...)
             menu_focus.unfocus()
         else
             menu_focus.focus()
+        end
+    elseif cmd_lower == 'cycle' then
+        local addons = windower.ffxi.get_addons()
+        local loaded_set = {}
+        for _, name in pairs(addons) do
+            loaded_set[name:lower()] = true
+        end
+        
+        local active_cycle = {}
+        for _, name in ipairs(settings.cycle_order) do
+            if loaded_set[name:lower()] then
+                table.insert(active_cycle, name)
+            end
+        end
+        
+        if #active_cycle > 0 then
+            local next_addon = nil
+            if not active_focus_holder then
+                next_addon = active_cycle[1]
+            else
+                local idx = nil
+                for i, name in ipairs(active_cycle) do
+                    if name:lower() == active_focus_holder:lower() then
+                        idx = i
+                        break
+                    end
+                end
+                
+                if not idx then
+                    next_addon = active_cycle[1]
+                else
+                    local next_idx = (idx % #active_cycle) + 1
+                    next_addon = active_cycle[next_idx]
+                end
+            end
+            
+            if next_addon then
+                windower.send_command('lua c ' .. next_addon .. ' focus')
+            end
+        end
+    elseif cmd_lower == 'addon_message' then
+        local sender = args[1]
+        local event_type = args[2]
+        if event_type == 'focus' then
+            if active_focus_holder and active_focus_holder:lower() ~= sender:lower() then
+                windower.send_command('lua c ' .. active_focus_holder .. ' unfocus')
+            end
+            active_focus_holder = sender
+        elseif event_type == 'unfocus' then
+            if active_focus_holder and active_focus_holder:lower() == sender:lower() then
+                active_focus_holder = nil
+            end
         end
     elseif cmd_lower == 'autohide' then
         settings.auto_hide = not settings.auto_hide
