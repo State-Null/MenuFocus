@@ -159,7 +159,73 @@ Using this click-simulation technique, developers can add full gamepad support t
 
 ---
 
-## 4. API Quick Reference
+## 4. Case Study 3: Confirmation Dialog Popups (e.g., Party Invites)
+
+### The Problem
+Prompt overlays (such as party invitations, trade proposals, or teleport requests) require players to click "Yes/Accept" or "No/Decline" buttons. Gamepad players or keyboard-only users must take their hands off their controls and use the mouse to accept.
+
+### The Integration
+We intercept the incoming network packet (e.g., party invite packet `0x0DC`), draw a clean text confirmation HUD, and automatically claim keyboard focus:
+
+```lua
+-- Inside your main addon file (e.g., PartyConfirm.lua)
+local menu_focus = require('menu_focus')
+local texts = require('texts')
+
+local confirm_hud = texts.new({
+    pos = {x = 500, y = 400},
+    text = { size = 11, font = 'Consolas' },
+    bg = { visible = true, alpha = 200 }
+})
+
+local prompt_items = {
+    { name = "Accept Invite",  action = "/join" },
+    { name = "Decline Invite", action = "/decline" }
+}
+
+menu_focus.init({
+    on_select = function(item, index)
+        -- Execute FFXI slash command
+        windower.send_command('input ' .. item.action)
+        menu_focus.unfocus() -- Releases binds and hides HUD
+    end,
+    on_focus_change = function(focused, index)
+        if focused then
+            -- Draw HUD list showing cursor highlight
+            local lines = { "[ Party Invite ]", "--------------------" }
+            for i, item in ipairs(prompt_items) do
+                if i == index then
+                    table.insert(lines, " → " .. item.name)
+                else
+                    table.insert(lines, "   " .. item.name)
+                end
+            end
+            confirm_hud:text(table.concat(lines, "\n"))
+            confirm_hud:show()
+        else
+            confirm_hud:hide()
+        end
+    end
+})
+
+-- Intercept incoming party invite packet (0x0DC)
+windower.register_event('incoming chunk', function(id, data, modified, injected, blocked)
+    if id == 0x0DC then
+        local packet = packets.parse('incoming', data)
+        windower.add_to_chat(207, packet.player_name .. ' invited you to party!')
+        
+        -- Activate menu focus with our Yes/No items
+        menu_focus.set_items(prompt_items)
+        menu_focus.focus()
+    end
+end)
+```
+
+With this pattern, a player receiving a party invite instantly sees the popup, cycles to "Accept Invite" using the Arrow keys, and confirms using Space or Numpad Enter, immediately returning to active gameplay.
+
+---
+
+## 5. API Quick Reference
 
 | Function | Description |
 |---|---|
@@ -168,7 +234,11 @@ Using this click-simulation technique, developers can add full gamepad support t
 | `menu_focus.focus()` | Starts focus mode. Binds all navigation keys to your addon. |
 | `menu_focus.unfocus()` | Ends focus mode. Gracefully schedules unbinding of all keys. |
 | `menu_focus.toggle()` | Switches focus mode between active and inactive. |
-| `menu_focus.next()` | Cycles selection cursor forward by 1. |
-| `menu_focus.prev()` | Cycles selection cursor backward by 1. |
+| `menu_focus.next()` | Cycles selection cursor forward linearly. |
+| `menu_focus.prev()` | Cycles selection cursor backward linearly. |
+| `menu_focus.up()` | Directional up. Follows `selected.up` link index, or falls back to `prev()`. |
+| `menu_focus.down()` | Directional down. Follows `selected.down` link index, or falls back to `next()`. |
+| `menu_focus.left()` | Directional left. Follows `selected.left` link index, or falls back to `prev()`. |
+| `menu_focus.right()` | Directional right. Follows `selected.right` link index, or falls back to `next()`. |
 | `menu_focus.select()` | Triggers the `on_select` callback for the highlighted item. |
 | `menu_focus.num_select(num)` | Jump-selects the item at index `num` (1-9) immediately. |
