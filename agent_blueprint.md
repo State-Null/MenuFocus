@@ -11,6 +11,7 @@ This blueprint contains the constraints, rules of thumb, and integration paradig
 *   **Focus State Separation**: 
     *   *Unfocused*: Hide the selection arrow (`→`) and any key help text. The HUD should look 100% identical to the original addon layout.
     *   *Focused*: Draw the selection arrow (`→`) next to the current index, update the background if necessary to indicate active focus, and show help text.
+*   **Prompt on Complexity / Major Interventions**: If the integration requires changes beyond simple toggles, simple checklists, or basic submenus (such as adding multiple pages, layout re-orientations, or complex state routing), you **must stop and prompt the user** for design feedback *before* writing or modifying any code. Do not execute major visual or structural revisions unilaterally.
 
 ---
 
