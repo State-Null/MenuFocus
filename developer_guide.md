@@ -383,54 +383,42 @@ With this pattern, a player receiving a party invite instantly sees the popup, c
 ## 5. Case Study 4: Combat Automation Settings (e.g., AutoCOR)
 
 ### The Problem
-Combat automation addons (like `AutoCOR` for automating Corsair rolls) help players maintain buffs. However, changing rolls on the fly requires typing long console commands (e.g., `//cor roll 1 Fighter` or `//cor roll 2 Tactician`), which is slow and disruptive during intense combat.
+Combat automation addons (like `AutoCOR` for automating Corsair rolls) help players maintain buffs. However, players need to turn automation on or off quickly during combat transitions (e.g., stopping rolls when a monster is nearly dead, or starting them at the start of a boss fight) without typing long console commands or using a mouse.
 
 ### The Integration
-We drop `menu_focus` in to display a fast, keyboard/controller-friendly roll configuration menu that can be opened via macro:
+We drop `menu_focus` in to display a simple, keyboard/controller-friendly On/Off toggle menu that can be opened via macro:
 
 ```lua
 -- Inside AutoCOR.lua
 local menu_focus = require('menu_focus')
 
--- Define the rolls menu structure with submenus
-local roll_menu = {
-    { 
-        name = "Set Roll 1...", 
-        submenu = {
-            { name = "Chaos Roll (Attack)",   action = "cor roll 1 Chaos" },
-            { name = "Fighter's Roll (Double)", action = "cor roll 1 Fighter" },
-            { name = "Back to Main",           action = "back" }
-        }
-    },
-    { 
-        name = "Set Roll 2...", 
-        submenu = {
-            { name = "Tactician's Roll (Regain)", action = "cor roll 2 Tactician" },
-            { name = "Evoker's Roll (Refresh)",   action = "cor roll 2 Evoker" },
-            { name = "Back to Main",              action = "back" }
-        }
-    },
-    { name = "Close Menu", action = "close" }
+-- Local automation flag
+local autocor_enabled = false
+
+-- Simple toggle menu options
+local toggle_menu = {
+    { name = "Toggle Automation (ON/OFF)", action = "toggle" },
+    { name = "Exit Menu",                  action = "close" }
 }
 
--- Bind selecting a roll to trigger AutoCOR's settings update command
 menu_focus.init({
     on_select = function(item, index)
         if item.action == "close" then
             menu_focus.unfocus()
-        elseif item.action ~= "back" and not item.submenu then
-            -- Send settings change command directly to our addon
-            windower.send_command(item.action)
-            menu_focus.unfocus()
+        elseif item.action == "toggle" then
+            -- Flip status and trigger normal addon logic
+            autocor_enabled = not autocor_enabled
+            windower.add_to_chat(207, "AutoCOR rolls automation is now " .. (autocor_enabled and "ON" or "OFF"))
+            menu_focus.unfocus() -- Done, close menu
         end
     end
     -- HUD drawing logic omitted for brevity...
 })
 
-menu_focus.set_items(roll_menu)
+menu_focus.set_items(toggle_menu)
 ```
 
-This lets players hit a macro button, press `Down` and `Space` twice to change their combat rolls in half a second, and keep playing seamlessly.
+This lets players hit their macro button, press `Space` or `Numpad Enter` immediately to toggle automation, and resume fighting in a fraction of a second.
 
 ---
 

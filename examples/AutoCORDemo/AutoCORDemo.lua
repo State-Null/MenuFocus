@@ -12,10 +12,7 @@ local menu_focus = require('menu_focus')
 local texts = require('texts')
 
 -- Local configuration state
-local rolls = {
-    roll1 = "None",
-    roll2 = "None"
-}
+local autocor_enabled = false
 
 -- Create default texts HUD
 local hud = texts.new({
@@ -27,24 +24,20 @@ local hud = texts.new({
 
 -- Define our menu options with callback actions
 local menu_items = {
-    { name = "Roll 1: Chaos Roll (Attack)",      action = function() rolls.roll1 = "Chaos Roll" end },
-    { name = "Roll 1: Fighter's Roll (Double)",  action = function() rolls.roll1 = "Fighter's Roll" end },
-    { name = "Roll 2: Evoker's Roll (Refresh)",   action = function() rolls.roll2 = "Evoker's Roll" end },
-    { name = "Roll 2: Tactician's Roll (Regain)", action = function() rolls.roll2 = "Tactician's Roll" end },
-    { name = "Exit & Save Settings",             action = "close" }
+    { name = "Toggle Automation (ON/OFF)", action = function() autocor_enabled = not autocor_enabled end },
+    { name = "Exit Menu",                  action = "close" }
 }
 
 -- Render HUD with highlight cursor
 local function update_hud()
     local lines = {
-        "=== [ AutoCOR Roll Settings ] ===",
-        "Roll 1 Slot : " .. rolls.roll1,
-        "Roll 2 Slot : " .. rolls.roll2,
+        "=== [ AutoCOR Automation ] ===",
+        "Status : " .. (autocor_enabled and "\\cs(50,255,50)ENABLED\\cr" or "\\cs(255,50,50)DISABLED\\cr"),
     }
 
     if menu_focus.is_focused then
         table.insert(lines, "-------------------------------------")
-        table.insert(lines, "Select a roll configuration options:")
+        table.insert(lines, "Select an option:")
 
         local current_idx = menu_focus.current_index
         for i, item in ipairs(menu_items) do
@@ -71,7 +64,7 @@ menu_focus.init({
             menu_focus.unfocus()
         else
             item.action()
-            windower.add_to_chat(207, "[AutoCORDemo] Roll updated! Roll 1: " .. rolls.roll1 .. " | Roll 2: " .. rolls.roll2)
+            windower.add_to_chat(207, "[AutoCORDemo] AutoCOR is now " .. (autocor_enabled and "ENABLED" or "DISABLED"))
             update_hud()
         end
     end,
