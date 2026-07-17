@@ -4,6 +4,8 @@ A customizable, keyboard-driven command menu addon for **Final Fantasy XI Window
 
 Repository: [https://github.com/State-Null/MenuFocus](https://github.com/State-Null/MenuFocus)
 
+![MenuFocus In-Game Menu Preview](menu_preview.png)
+
 > [!NOTE]
 > **Project Structure**:
 > * **The Demo Addon (`MenuFocus.lua`)**: A working Windower 4 addon that showcases the menu system. You can download and run it immediately!
