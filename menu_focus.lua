@@ -63,34 +63,17 @@ function menu_focus.init(config)
         windower.send_command('unbind %' .. tostring(i))
     end
     
-    -- Register global command listener for inter-addon messages
-    windower.register_event('command', function(cmd)
-        local cmd_str = cmd:lower()
-        if cmd_str:sub(1, 17) == "menu_focus_event " then
-            local parts = {}
-            for word in cmd:gmatch("%S+") do
-                table.insert(parts, word)
-            end
-            
-            local event_type = parts[2]
-            local sender = parts[3]
-            
-            if event_type == 'mf_ping' then
-                if sender ~= _addon.name then
-                    windower.send_command('menu_focus_event mf_register ' .. _addon.name)
-                end
-            elseif event_type == 'mf_force_focus' then
-                local target = parts[3]
-                if target == _addon.name then
-                    menu_focus.focus()
-                end
-            end
+    -- Register local addon command listener for ping routing from the manager
+    windower.register_event('addon command', function(cmd, ...)
+        local cmd_lower = cmd and cmd:lower()
+        if cmd_lower == 'mf_ping' then
+            windower.send_command('menufocus mf_register ' .. _addon.name)
         end
     end)
     
-    -- Self-healing unload hook to clean up binds and unregister immediately upon addon unload
+    -- Self-healing unload hook to clean up binds and notify manager of departure
     windower.register_event('unload', function()
-        windower.send_command('menu_focus_event mf_unregister ' .. _addon.name)
+        windower.send_command('menufocus mf_unregister ' .. _addon.name)
         
         if menu_focus.is_focused then
             -- Unbind synchronously and immediately, bypassing any delayed wait command
@@ -103,9 +86,8 @@ function menu_focus.init(config)
         end
     end)
     
-    -- Notify the main MenuFocus addon about our presence
-    windower.send_command('menu_focus_event mf_register ' .. _addon.name)
-    windower.send_command('menu_focus_event mf_ping ' .. _addon.name)
+    -- Notify the manager addon of our presence upon load
+    windower.send_command('menufocus mf_register ' .. _addon.name)
 end
 
 --- Updates the items list managed by the focus helper.
