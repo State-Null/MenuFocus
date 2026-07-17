@@ -10,6 +10,11 @@ local menu_focus = require('menu_focus')
 -- Tracks which addon holds the active focus globally
 local active_focus_holder = nil
 
+-- Dynamic registry of currently loaded focusable addons
+local active_addons = {
+    ['menufocus'] = 'MenuFocus'
+}
+
 -- =========================================================================================
 -- CONFIGURATION BLOCK: ADD OR MODIFY YOUR SUBMENUS HERE
 -- =========================================================================================
@@ -193,26 +198,38 @@ windower.register_event('addon command', function(cmd, ...)
             menu_focus.focus()
         end
     elseif cmd_lower == 'cycle' then
-        local addons = windower.ffxi.get_addons()
-        local loaded_set = {}
-        for _, name in pairs(addons) do
-            loaded_set[name:lower()] = true
-        end
+        -- Build the resolved cycle order from configured settings and dynamically registered active_addons
+        local resolved_cycle = {}
+        local seen = {}
         
-        local active_cycle = {}
+        -- First, add addons in the defined settings.cycle_order if they are currently loaded/active
         for _, name in ipairs(settings.cycle_order) do
-            if loaded_set[name:lower()] then
-                table.insert(active_cycle, name)
+            local name_lower = name:lower()
+            if active_addons[name_lower] and not seen[name_lower] then
+                table.insert(resolved_cycle, active_addons[name_lower])
+                seen[name_lower] = true
             end
         end
         
-        if #active_cycle > 0 then
+        -- Next, add any other active addons not in settings.cycle_order (alphabetized fallback)
+        local extra = {}
+        for name_lower, name in pairs(active_addons) do
+            if not seen[name_lower] then
+                table.insert(extra, name)
+            end
+        end
+        table.sort(extra)
+        for _, name in ipairs(extra) do
+            table.insert(resolved_cycle, name)
+        end
+        
+        if #resolved_cycle > 0 then
             local next_addon = nil
             if not active_focus_holder then
-                next_addon = active_cycle[1]
+                next_addon = resolved_cycle[1]
             else
                 local idx = nil
-                for i, name in ipairs(active_cycle) do
+                for i, name in ipairs(resolved_cycle) do
                     if name:lower() == active_focus_holder:lower() then
                         idx = i
                         break
@@ -220,16 +237,31 @@ windower.register_event('addon command', function(cmd, ...)
                 end
                 
                 if not idx then
-                    next_addon = active_cycle[1]
+                    next_addon = resolved_cycle[1]
                 else
-                    local next_idx = (idx % #active_cycle) + 1
-                    next_addon = active_cycle[next_idx]
+                    local next_idx = (idx % #resolved_cycle) + 1
+                    next_addon = resolved_cycle[next_idx]
                 end
             end
             
             if next_addon then
-                windower.send_command('lua c ' .. next_addon .. ' focus')
+                windower.send_command('menu_focus_event mf_force_focus ' .. next_addon)
             end
+        end
+    elseif cmd_lower == 'mf_register' then
+        local sender = args[1]
+        if sender then
+            active_addons[sender:lower()] = sender
+        end
+    elseif cmd_lower == 'mf_unregister' then
+        local sender = args[1]
+        if sender then
+            active_addons[sender:lower()] = nil
+        end
+    elseif cmd_lower == 'mf_ping' then
+        local sender = args[1]
+        if sender ~= _addon.name then
+            windower.send_command('menu_focus_event mf_register MenuFocus')
         end
     elseif cmd_lower == 'addon_message' then
         local sender = args[1]

@@ -55,6 +55,19 @@ function menu_focus.init(config)
     on_focus_change_cb = config.on_focus_change
     menu_focus.binds = config.binds or default_binds
     
+    -- Inject menu_focus_event alias into commands list so Windower routes focus broadcasts to this addon
+    _addon.commands = _addon.commands or {}
+    local alias_found = false
+    for _, c in ipairs(_addon.commands) do
+        if c:lower() == 'menu_focus_event' then
+            alias_found = true
+            break
+        end
+    end
+    if not alias_found then
+        table.insert(_addon.commands, 'menu_focus_event')
+    end
+    
     -- Proactively clear any stray binds from previous runs/crashes upon load
     for key, _ in pairs(menu_focus.binds) do
         windower.send_command('unbind ' .. key)
@@ -63,8 +76,27 @@ function menu_focus.init(config)
         windower.send_command('unbind %' .. tostring(i))
     end
     
-    -- Self-healing unload hook to clean up binds immediately upon addon unload
+    -- Register addon command listener for internal framework messages
+    windower.register_event('addon command', function(cmd, ...)
+        local cmd_lower = cmd and cmd:lower()
+        local args = {...}
+        if cmd_lower == 'mf_ping' then
+            local sender = args[1]
+            if sender ~= _addon.name then
+                windower.send_command('menu_focus_event mf_register ' .. _addon.name)
+            end
+        elseif cmd_lower == 'mf_force_focus' then
+            local target = args[1]
+            if target == _addon.name then
+                menu_focus.focus()
+            end
+        end
+    end)
+    
+    -- Self-healing unload hook to clean up binds and unregister immediately upon addon unload
     windower.register_event('unload', function()
+        windower.send_command('menu_focus_event mf_unregister ' .. _addon.name)
+        
         if menu_focus.is_focused then
             -- Unbind synchronously and immediately, bypassing any delayed wait command
             for key, _ in pairs(menu_focus.binds) do
@@ -75,6 +107,10 @@ function menu_focus.init(config)
             end
         end
     end)
+    
+    -- Broadcast our registration and ping others to discover loaded addons
+    windower.send_command('menu_focus_event mf_register ' .. _addon.name)
+    windower.send_command('menu_focus_event mf_ping ' .. _addon.name)
 end
 
 --- Updates the items list managed by the focus helper.
