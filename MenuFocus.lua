@@ -188,6 +188,8 @@ windower.register_event('addon command', function(cmd, ...)
         else
             menu_focus.focus()
         end
+    elseif cmd_lower == 'cycle' then
+        menu_focus.cycle()
     elseif cmd_lower == 'autohide' then
         settings.auto_hide = not settings.auto_hide
         update_hud()

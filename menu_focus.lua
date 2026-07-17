@@ -18,9 +18,10 @@ menu_focus.is_focused = false      -- True if keyboard/gamepad is currently capt
 menu_focus.current_index = 1       -- The 1-based index of the currently selected menu item
 menu_focus.items = {}              -- Active menu items table
 
--- Private Callbacks
+-- Private Callbacks and global registry for addon cycling
 local on_select_cb = nil
 local on_focus_change_cb = nil
+local active_addons = {}           -- Set of loaded addons supporting menu_focus
 
 -- Standard Windower key bindings configuration (State modifier '%' for chat safety)
 local default_binds = {
@@ -54,6 +55,9 @@ function menu_focus.init(config)
     on_focus_change_cb = config.on_focus_change
     menu_focus.binds = config.binds or default_binds
     
+    -- Register ourselves locally
+    active_addons[_addon.name] = true
+    
     -- Proactively clear any stray binds from previous runs/crashes upon load
     for key, _ in pairs(menu_focus.binds) do
         windower.send_command('unbind ' .. key)
@@ -64,6 +68,9 @@ function menu_focus.init(config)
     
     -- Self-healing unload hook to clean up binds immediately upon addon unload
     windower.register_event('unload', function()
+        -- Tell other addons we are unloading
+        windower.send_ipc_message("menu_focus:unregister:" .. _addon.name)
+        
         if menu_focus.is_focused then
             -- Unbind synchronously and immediately, bypassing any delayed wait command
             for key, _ in pairs(menu_focus.binds) do
@@ -75,15 +82,43 @@ function menu_focus.init(config)
         end
     end)
 
-    -- IPC message listener for automated focus arbitration across loaded addons
+    -- IPC message listener for automated focus arbitration and addon cycling
     windower.register_event('ipc message', function(msg)
-        if msg:sub(1, 17) == "menu_focus:focus:" then
+        if msg == "menu_focus:ping" then
+            -- Reply with our presence so the new addon registers us
+            windower.send_ipc_message("menu_focus:register:" .. _addon.name)
+        elseif msg:sub(1, 20) == "menu_focus:register:" then
+            local name = msg:sub(21)
+            active_addons[name] = true
+        elseif msg:sub(1, 22) == "menu_focus:unregister:" then
+            local name = msg:sub(23)
+            active_addons[name] = nil
+        elseif msg:sub(1, 23) == "menu_focus:force_focus:" then
+            local target = msg:sub(24)
+            if target == _addon.name then
+                menu_focus.focus()
+            end
+        elseif msg == "menu_focus:cycle_from:none" then
+            -- First alphabetical addon in the list claims focus if nothing was focused
+            local list = {}
+            for name, _ in pairs(active_addons) do
+                table.insert(list, name)
+            end
+            table.sort(list)
+            if #list > 0 and list[1] == _addon.name then
+                menu_focus.focus()
+            end
+        elseif msg:sub(1, 17) == "menu_focus:focus:" then
             local sender = msg:sub(18)
             if sender ~= _addon.name and menu_focus.is_focused then
                 menu_focus.unfocus()
             end
         end
     end)
+    
+    -- Broadcast our registration and discover other loaded addons
+    windower.send_ipc_message("menu_focus:register:" .. _addon.name)
+    windower.send_ipc_message("menu_focus:ping")
 end
 
 --- Updates the items list managed by the focus helper.
@@ -281,6 +316,44 @@ function menu_focus.num_select(num)
         menu_focus.current_index = index
         menu_focus.select()
     end
+end
+
+--- Cycle focus to the next loaded addon in alphabetical order.
+function menu_focus.cycle()
+    local list = {}
+    for name, _ in pairs(active_addons) do
+        table.insert(list, name)
+    end
+    table.sort(list)
+    
+    if #list == 0 then return end
+    
+    local current_focused = nil
+    if menu_focus.is_focused then
+        current_focused = _addon.name
+    end
+    
+    -- If nothing is currently focused, request the first sorted addon to focus
+    if not current_focused then
+        windower.send_ipc_message("menu_focus:cycle_from:none")
+        return
+    end
+    
+    -- Find our position in the sorted list
+    local idx = 1
+    for i, name in ipairs(list) do
+        if name == current_focused then
+            idx = i
+            break
+        end
+    end
+    
+    -- Determine the next addon (wrap around)
+    local next_idx = (idx % #list) + 1
+    local next_addon = list[next_idx]
+    
+    -- Force focus the next addon ( arbitration will automatically unfocus us )
+    windower.send_ipc_message("menu_focus:force_focus:" .. next_addon)
 end
 
 return menu_focus
