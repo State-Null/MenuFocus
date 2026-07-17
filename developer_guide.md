@@ -234,12 +234,13 @@ windower.register_event('addon command', function(cmd, ...)
         menu_focus.clear_binds()
     end
 end)
-
--- Auto-cleanup if players unload or reload your addon
-windower.register_event('unload', function()
-    menu_focus.unfocus()
-end)
 ```
+
+> [!TIP]
+> **Self-Healing Binds & Emergency Reset**:
+> * **Auto-Cleanup**: The library automatically registers a Windower `unload` event hook internally during `init()`. You **do not** need to write manual unbind boilerplate for your addon's unload event; keys are cleared synchronously when the addon is unloaded or reloaded.
+> * **Initialization Sweep**: On startup, the library proactively sweeps and clears any stray focus bindings to prevent control lockups from previous crashed sessions.
+> * **Emergency Escape**: If you make a syntax error in your custom addon that causes a crash and locks your keyboard during development, simply reload the main `MenuFocus` addon (`//lua reload MenuFocus`) to immediately release all keybinds and restore normal controls.
 
 Now, players can create an in-game macro `/console youraddon focus` to open your menu, navigate it using their keyboard/controller, select an item, and automatically return to standard gameplay controls!
 
