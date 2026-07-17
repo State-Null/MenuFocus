@@ -53,6 +53,19 @@ function menu_focus.init(config)
     on_select_cb = config.on_select
     on_focus_change_cb = config.on_focus_change
     menu_focus.binds = config.binds or default_binds
+    
+    -- Self-healing unload hook to clean up binds immediately upon addon unload
+    windower.register_event('unload', function()
+        if menu_focus.is_focused then
+            -- Unbind synchronously and immediately, bypassing any delayed wait command
+            for key, _ in pairs(menu_focus.binds) do
+                windower.send_command('unbind ' .. key)
+            end
+            for i = 1, math.min(#menu_focus.items, 9) do
+                windower.send_command('unbind %' .. tostring(i))
+            end
+        end
+    end)
 end
 
 --- Updates the items list managed by the focus helper.
