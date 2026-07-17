@@ -11,6 +11,7 @@ Before modifying any code, review these essential safety standards:
 2. **Respect the Original UI**: Addons should remain visually unchanged when focus is inactive. Do not hide persistent HUD elements or add custom decorative borders unless focused.
 3. **No Enter Traps**: Keyboard `Enter` leaks and opens the chat line in FFXI. Use `Space` or `Numpad Enter` as confirm keys.
 4. **Collaborate on Complexity**: If the layout requires complex submenus, multi-column navigation, or major visual alterations, stop and ask the user for alignment before writing code.
+5. **Explain to the End User**: If you are an AI assistant picking up this blueprint, you **must present a short, friendly summary to the user** before starting. Explicitly reassure them that you will keep the original HUD visuals exactly the same, protect their chat line from key leaks, and halt to ask for permission before modifying any complex menus.
 
 ---
 
