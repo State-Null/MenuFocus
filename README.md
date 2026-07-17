@@ -97,9 +97,11 @@ When focus mode is active, the following default keyboard controls are dynamical
 
 *   **`Tab` / `Down` / `Right`**: Cycle highlight cursor to the next item.
 *   **`Shift + Tab` / `Up` / `Left`**: Cycle highlight cursor to the previous item.
-*   **`Enter` / `Space` / `Numpad Enter`**: Confirm and trigger the selected action.
+*   **`Space`**: Confirm and trigger the selected action (fully blockable to prevent chat box leakage).
 *   **`Escape`**: Cancel selection, go back in submenus, or close the menu.
 *   **`1` through `9`**: Instant selection shortcut for the corresponding item.
+*   **`Numpad 0`**: Cycles highlight cursor to the next item (acts as a convenient secondary `Tab` key next to the arrow keys).
+*   **`Numpad Enter`**: Confirms and triggers the selected action (fully tested and safe from chat box leakage).
 
 ---
 
