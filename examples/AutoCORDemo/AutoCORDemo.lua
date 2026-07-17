@@ -58,7 +58,7 @@ menu_focus.init({
         if item.action == "toggle" then
             autocor_enabled = not autocor_enabled
             windower.add_to_chat(207, "[AutoCORDemo] AutoCOR rolls automation is now " .. (autocor_enabled and "ON" or "OFF"))
-            menu_focus.unfocus()
+            update_hud()
         end
     end,
     on_focus_change = function(focused, index)
