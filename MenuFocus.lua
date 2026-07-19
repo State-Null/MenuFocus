@@ -322,5 +322,5 @@ end)
 -- Make sure to clean up if the addon is unloaded
 windower.register_event('unload', function()
     menu_hud:destroy()
-    menu_focus.unfocus()
+    menu_focus.unload()
 end)

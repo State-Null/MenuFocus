@@ -18,27 +18,24 @@ menu_focus.is_focused = false      -- True if keyboard/gamepad is currently capt
 menu_focus.current_index = 1       -- The 1-based index of the currently selected menu item
 menu_focus.items = {}              -- Active menu items table
 
--- Private Callbacks and global registry for addon cycling
+-- Private Callbacks
 local on_select_cb = nil
 local on_focus_change_cb = nil
-local active_addons = {}           -- Set of loaded addons supporting menu_focus
 
 -- Standard Windower key bindings configuration (State modifier '%' for chat safety)
 local default_binds = {
     ['%tab']          = 'menu_next',
     ['%~tab']         = 'menu_prev',     -- Shift + Tab
-    ['%space']        = 'menu_select',   -- Keyboard Space (safe confirm key)
-    ['%escape']       = 'menu_close',    -- Cancel/Exit
+    ['%enter']        = 'menu_select',   -- Keyboard Enter
+    ['%numpadenter']  = 'menu_select',   -- Numpad Enter
+    ['%space']        = 'menu_select',   -- Keyboard Space (safe for Compact mode fallback)
+    ['%escape']       = 'close',         -- Cancel/Exit
     
-    -- Keyboard Arrow keys for directional navigation
-    ['%up']           = 'menu_up',
-    ['%down']         = 'menu_down',
-    ['%left']         = 'menu_left',
-    ['%right']        = 'menu_right',
-    
-    -- Numpad test bindings (easy access next to arrow keys)
-    ['%numpad0']      = 'menu_next',     -- Cycles options like Tab
-    ['%numpadenter']  = 'menu_select',   -- Confirms options
+    -- Keyboard Arrow keys for navigation
+    ['%up']           = 'menu_prev',
+    ['%down']         = 'menu_next',
+    ['%left']         = 'menu_prev',
+    ['%right']        = 'menu_next',
 }
 
 -- =========================================================================================
@@ -54,40 +51,6 @@ function menu_focus.init(config)
     on_select_cb = config.on_select
     on_focus_change_cb = config.on_focus_change
     menu_focus.binds = config.binds or default_binds
-    
-    -- Proactively clear any stray binds from previous runs/crashes upon load
-    for key, _ in pairs(menu_focus.binds) do
-        windower.send_command('unbind ' .. key)
-    end
-    for i = 1, 9 do
-        windower.send_command('unbind %' .. tostring(i))
-    end
-    
-    -- Register local addon command listener for ping routing from the manager
-    windower.register_event('addon command', function(cmd, ...)
-        local cmd_lower = cmd and cmd:lower()
-        if cmd_lower == 'mf_ping' then
-            windower.send_command('menufocus mf_register ' .. _addon.name)
-        end
-    end)
-    
-    -- Self-healing unload hook to clean up binds and notify manager of departure
-    windower.register_event('unload', function()
-        windower.send_command('menufocus mf_unregister ' .. _addon.name)
-        
-        if menu_focus.is_focused then
-            -- Unbind synchronously and immediately, bypassing any delayed wait command
-            for key, _ in pairs(menu_focus.binds) do
-                windower.send_command('unbind ' .. key)
-            end
-            for i = 1, math.min(#menu_focus.items, 9) do
-                windower.send_command('unbind %' .. tostring(i))
-            end
-        end
-    end)
-    
-    -- Notify the manager addon of our presence upon load
-    windower.send_command('menufocus mf_register ' .. _addon.name)
 end
 
 --- Updates the items list managed by the focus helper.
@@ -118,9 +81,6 @@ function menu_focus.focus()
         windower.send_command('bind %' .. tostring(i) .. ' ' .. _addon.name .. ' menu_num_select ' .. tostring(i))
     end
     
-    -- Local console event broadcast
-    windower.send_command('addon_message ' .. _addon.name .. ' focus')
-    
     if on_focus_change_cb then
         on_focus_change_cb(true, menu_focus.current_index)
     end
@@ -136,9 +96,6 @@ function menu_focus.unfocus()
     -- Delay unbind slightly to swallow the key-up event before restoring normal controls
     windower.send_command('wait 0.15; ' .. _addon.name .. ' clear_binds')
     
-    -- Local console event broadcast
-    windower.send_command('addon_message ' .. _addon.name .. ' unfocus')
-    
     if on_focus_change_cb then
         on_focus_change_cb(false, nil)
     end
@@ -147,6 +104,21 @@ end
 --- Forcefully clears all custom bindings immediately (used internally and on unload).
 function menu_focus.clear_binds()
     if menu_focus.is_focused then return end -- Safety check: abort if refocused
+    
+    -- Remove navigation binds
+    for key, _ in pairs(menu_focus.binds) do
+        windower.send_command('unbind ' .. key)
+    end
+    
+    -- Remove dynamic number binds
+    for i = 1, math.min(#menu_focus.items, 9) do
+        windower.send_command('unbind %' .. tostring(i))
+    end
+end
+
+--- Forcefully clears all custom bindings immediately on unload.
+function menu_focus.unload()
+    menu_focus.is_focused = false
     
     -- Remove navigation binds
     for key, _ in pairs(menu_focus.binds) do
@@ -175,6 +147,10 @@ end
 --- Cycle highlight cursor to the next option.
 function menu_focus.next()
     if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local current_item = menu_focus.items[menu_focus.current_index]
+    if current_item and current_item.navigate_next and current_item:navigate_next() then
+        return
+    end
     menu_focus.current_index = (menu_focus.current_index % #menu_focus.items) + 1
     if on_focus_change_cb then
         on_focus_change_cb(true, menu_focus.current_index)
@@ -184,6 +160,10 @@ end
 --- Cycle highlight cursor to the previous option.
 function menu_focus.prev()
     if not menu_focus.is_focused or #menu_focus.items == 0 then return end
+    local current_item = menu_focus.items[menu_focus.current_index]
+    if current_item and current_item.navigate_prev and current_item:navigate_prev() then
+        return
+    end
     menu_focus.current_index = menu_focus.current_index - 1
     if menu_focus.current_index < 1 then
         menu_focus.current_index = #menu_focus.items
@@ -191,74 +171,6 @@ function menu_focus.prev()
     if on_focus_change_cb then
         on_focus_change_cb(true, menu_focus.current_index)
     end
-end
-
---- Navigate up directionally. Falls back to prev() if no custom path is defined.
-function menu_focus.up()
-    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
-    local selected = menu_focus.items[menu_focus.current_index]
-    if selected and selected.up then
-        local target = tonumber(selected.up)
-        if target and target >= 1 and target <= #menu_focus.items then
-            menu_focus.current_index = target
-            if on_focus_change_cb then
-                on_focus_change_cb(true, menu_focus.current_index)
-            end
-            return
-        end
-    end
-    menu_focus.prev()
-end
-
---- Navigate down directionally. Falls back to next() if no custom path is defined.
-function menu_focus.down()
-    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
-    local selected = menu_focus.items[menu_focus.current_index]
-    if selected and selected.down then
-        local target = tonumber(selected.down)
-        if target and target >= 1 and target <= #menu_focus.items then
-            menu_focus.current_index = target
-            if on_focus_change_cb then
-                on_focus_change_cb(true, menu_focus.current_index)
-            end
-            return
-        end
-    end
-    menu_focus.next()
-end
-
---- Navigate left directionally. Falls back to prev() if no custom path is defined.
-function menu_focus.left()
-    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
-    local selected = menu_focus.items[menu_focus.current_index]
-    if selected and selected.left then
-        local target = tonumber(selected.left)
-        if target and target >= 1 and target <= #menu_focus.items then
-            menu_focus.current_index = target
-            if on_focus_change_cb then
-                on_focus_change_cb(true, menu_focus.current_index)
-            end
-            return
-        end
-    end
-    menu_focus.prev()
-end
-
---- Navigate right directionally. Falls back to next() if no custom path is defined.
-function menu_focus.right()
-    if not menu_focus.is_focused or #menu_focus.items == 0 then return end
-    local selected = menu_focus.items[menu_focus.current_index]
-    if selected and selected.right then
-        local target = tonumber(selected.right)
-        if target and target >= 1 and target <= #menu_focus.items then
-            menu_focus.current_index = target
-            if on_focus_change_cb then
-                on_focus_change_cb(true, menu_focus.current_index)
-            end
-            return
-        end
-    end
-    menu_focus.next()
 end
 
 --- Confirm selection at the current highlighted index.
